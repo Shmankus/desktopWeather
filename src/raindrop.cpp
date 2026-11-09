@@ -122,13 +122,13 @@ void RainDrop::advance()
             else if (minDist == distToLeft)
             {
                 // left edge
-                m_Yvel = 0;
+                m_Yvel = m_freeFall_Yvel * .90;
                 m_Xvel = 0;
             }
             else if (minDist == distToRight)
             {
                 // Right edge
-                m_Yvel = 0;
+                m_Yvel = m_freeFall_Yvel * .90;
                 m_Xvel = 0;
             }
 
@@ -144,6 +144,7 @@ void RainDrop::advance()
         {
 
             m_grav = m_default_grav;
+            m_freeFall_Yvel = m_Yvel;
         }
     }
 
@@ -167,11 +168,7 @@ RainDrop::RainDrop(const QSize &areaSize, const WindowTracker &tracker)
       m_tracker(tracker)
 {
     QRandomGenerator *random = QRandomGenerator::global();
-    m_Xvel = 500 + random->generateDouble() * .1;
-    m_Yvel = 500 + random->generateDouble() * .1;
 
-    m_default_m_Xvel = m_Xvel;
-    m_default_m_Yvel = m_Yvel;
     m_angle = 60;
     startAtRandomEdge();
 }

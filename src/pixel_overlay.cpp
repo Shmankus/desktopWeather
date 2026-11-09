@@ -25,7 +25,7 @@
         m_pixels.fill(Qt::transparent);
 
         // Create the drops once; each one chooses its own starting position.
-        constexpr int dropCount = 400;
+        constexpr int dropCount = 600;
         for (int i = 0; i < dropCount; ++i)
         {
             m_drops.emplace_back(m_pixels.size(), tracker);
