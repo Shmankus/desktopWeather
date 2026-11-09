@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Desktop Weather
+Comment=A starter weather application
+Exec=desktop-weather
+Icon=weather-clear
+Type=Application
+Categories=Utility;
+Terminal=false

@@ -1,0 +1,11 @@
+{
+    "KPackageStructure": "KWin/Script",
+    "KPlugin": {
+        "Id": "desktop-weather-window-tracker",
+        "Name": "Desktop Weather Window Tracker",
+        "Description": "Sends KWin window information to Desktop Weather",
+        "Version": "1.0",
+        "License": "GPL-3.0-or-later"
+    },
+    "X-Plasma-API": "javascript"
+}
