@@ -51,5 +51,5 @@
                 drop.draw(painter);
             }
             update(); });
-        m_timer.start(16);
+        m_timer.start(6.06);
     }

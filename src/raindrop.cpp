@@ -8,7 +8,7 @@
 void RainDrop::startAtRandomEdge()
 {
     QRandomGenerator *random = QRandomGenerator::global();
-    const int rand_edge = random->bounded(2);
+    const int rand_edge = random->bounded(5); // only 1 in 6 get spawned on side of screen
     const int maxX = qMax(1, m_areaSize.width() - static_cast<int>(dropSize) + 1);
     const int maxY = qMax(1, m_areaSize.height() - static_cast<int>(dropSize) + 1);
 
@@ -19,7 +19,7 @@ void RainDrop::startAtRandomEdge()
     }
     else
     {
-        if (rand_edge == 0)
+        if (rand_edge != 0)
         {
             m_position = QPointF(random->bounded(maxX), 0);
         }
@@ -28,9 +28,10 @@ void RainDrop::startAtRandomEdge()
             m_position = QPointF(0, random->bounded(maxY));
         }
     }
-
+ 
     m_Xvel = m_default_m_Xvel;
     m_Yvel = m_default_m_Yvel;
+    lastTime = std::chrono::high_resolution_clock::now();
 }
 // sets new angle of attack for the droplets
 
@@ -50,9 +51,15 @@ qreal RainDrop::getDropAngle()
 void RainDrop::advance()
 {
 
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float> deltaDuration = currentTime - lastTime;
+    lastTime = currentTime;
+    float deltaTime = deltaDuration.count(); // Delta time in seconds
+
+
     m_Yvel += m_grav;
     const qreal angleRadians = qDegreesToRadians(m_angle);
-    m_position += QPointF(m_Xvel * std::cos(angleRadians), m_Yvel * std::sin(angleRadians));
+    m_position += QPointF(m_Xvel * std::cos(angleRadians) * deltaTime, m_Yvel * std::sin(angleRadians) * deltaTime);
 
     const QRectF screenBounds(QPointF(0, 0), QSizeF(m_areaSize));
     if (!screenBounds.intersects(bounds()))
@@ -141,7 +148,6 @@ void RainDrop::advance()
     }
 
     // detect if water is stuck, either trickle down app or evaporate?
-    
 }
 
 // The overlay uses this rectangle both to draw and erase the drop.
@@ -161,11 +167,11 @@ RainDrop::RainDrop(const QSize &areaSize, const WindowTracker &tracker)
       m_tracker(tracker)
 {
     QRandomGenerator *random = QRandomGenerator::global();
-    m_Xvel = 35 + random->generateDouble() * .1;
-    m_Yvel = 45 + random->generateDouble() * .1;
+    m_Xvel = 500 + random->generateDouble() * .1;
+    m_Yvel = 500 + random->generateDouble() * .1;
 
     m_default_m_Xvel = m_Xvel;
     m_default_m_Yvel = m_Yvel;
-    m_angle = 124;
+    m_angle = 60;
     startAtRandomEdge();
 }

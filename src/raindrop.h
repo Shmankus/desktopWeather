@@ -33,13 +33,15 @@ class RainDrop
     qreal m_Xvel;
     qreal m_Yvel;
 
-    qreal m_grav = 5;
-    qreal m_default_grav = 5;
+    qreal m_grav = 10;
+    qreal m_default_grav = 10;
 
     qreal m_default_m_Xvel;
     qreal m_default_m_Yvel;
 
     qreal m_angle;
+
+    std::chrono::high_resolution_clock::time_point lastTime = std::chrono::high_resolution_clock::now();
 public:
     void startAtRandomEdge();
      void setDropAngle(double decAngle);
