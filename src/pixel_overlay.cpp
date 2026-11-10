@@ -19,7 +19,7 @@ PixelOverlay::PixelOverlay(QScreen *screen, const WindowTracker &tracker)
       m_screen(screen),
       m_screenName(screen->name())
 {
-    
+
     setWindowFlags(Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint |
                    Qt::WindowDoesNotAcceptFocus | Qt::WindowTransparentForInput);
     setAttribute(Qt::WA_TranslucentBackground);
@@ -30,7 +30,6 @@ PixelOverlay::PixelOverlay(QScreen *screen, const WindowTracker &tracker)
     m_pixels.fill(Qt::transparent);
 
     // Create the drops once; each one chooses its own starting position.
-    constexpr int dropCount = 1000;
     for (int i = 0; i < dropCount; ++i)
     {
         m_particles.push_back(std::make_unique<Snow>(m_pixels.size(), tracker, m_screenName));
@@ -59,7 +58,6 @@ PixelOverlay::PixelOverlay(QScreen *screen, const WindowTracker &tracker)
                 particle.draw(painter);
             }
             update(); });
-   
 }
 
 // Reconfigure this window as a layer-shell surface. Must run before show().
@@ -116,7 +114,6 @@ void PixelOverlay::configureAsLayerSurface()
     // not KDE's primary display on Wayland, so the screen is always explicit;
     // setScreenConfiguration() is deprecated since LayerShellQt 6.6.
     layer->setScreen(m_screen);
-
 }
 
 void PixelOverlay::resizeEvent(QResizeEvent *event)
@@ -152,9 +149,10 @@ void PixelOverlay::stopOverlay()
     m_timer.stop();
 }
 
-bool PixelOverlay::isTimerActive(){
+bool PixelOverlay::isTimerActive()
+{
 
-    return m_timer.isActive(); 
+    return m_timer.isActive();
 }
 
 void PixelOverlay::changeParticleType(std::string type, const WindowTracker &tracker)
@@ -166,7 +164,7 @@ void PixelOverlay::changeParticleType(std::string type, const WindowTracker &tra
     m_pixels.fill(Qt::transparent);
 
     m_particles.clear();
-    constexpr int dropCount = 1000;
+
     for (int i = 0; i < dropCount; ++i)
     {
         if (type == "snow")
@@ -180,4 +178,13 @@ void PixelOverlay::changeParticleType(std::string type, const WindowTracker &tra
     }
 
     m_timer.start(16);
+}
+
+int PixelOverlay::getParticleAmount()
+{
+    return dropCount;
+}
+void PixelOverlay::setParticleAmount(int num)
+{
+    dropCount = num;
 }

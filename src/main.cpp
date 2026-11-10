@@ -240,6 +240,22 @@ int main(int argc, char *argv[])
                          }
                          randomAngle->setText(QString::number(random_num));
                      });
+    auto *randomParticleAmount = new QAction(
+        QString::number(overlays.front()->getParticleAmount()), &app);
+    menu->addAction(randomParticleAmount);
+    QObject::connect(randomParticleAmount, &QAction::triggered, &app,
+                     [randomParticleAmount, &overlays]()
+                     {
+                         std::random_device rd;
+                         std::mt19937 gen(rd());
+                         std::uniform_int_distribution<> distrib(50, 1000);
+                         double random_num = distrib(gen);
+                         for (const std::unique_ptr<PixelOverlay> &overlay : overlays)
+                         {
+                             overlay->setParticleAmount(random_num);
+                         }
+                         randomParticleAmount->setText(QString::number(random_num));
+                     });
 
     auto *weatherAction = new QAction(QStringLiteral("Rain"), &app);
     weatherAction->setCheckable(true);

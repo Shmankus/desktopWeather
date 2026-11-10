@@ -19,6 +19,8 @@ class PixelOverlay : public QWidget
     QScreen *m_screen;
     QString m_screenName;
 
+    int dropCount = 1000;
+
 protected:
     // Qt calls this whenever the overlay needs to appear on screen again.
     void paintEvent(QPaintEvent *) override;
@@ -43,4 +45,6 @@ public:
     bool isTimerActive();
 
     void changeParticleType(std::string type, const WindowTracker &tracker);
+    int getParticleAmount();
+    void setParticleAmount(int num);
 };
