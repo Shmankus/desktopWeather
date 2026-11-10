@@ -135,13 +135,13 @@ void RainDrop::advance()
             else if (minDist == distToLeft)
             {
                 // left edge
-                m_Yvel = m_freeFall_Yvel * .92;
+                m_Yvel = m_freeFall_Yvel * .80;
                 m_Xvel = 0;
             }
             else if (minDist == distToRight)
             {
                 // Right edge
-                m_Yvel = m_freeFall_Yvel * .92;
+                m_Yvel = m_freeFall_Yvel * .80;
                 m_Xvel = 0;
             }
         }
