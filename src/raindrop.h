@@ -34,6 +34,10 @@ class RainDrop
     QSize m_areaSize;
     const WindowTracker &m_tracker;
 
+    // The output this drop falls on. Window geometry from the KWin script is
+    // reported per screen, so only windows on this screen can be collided with.
+    QString m_screenName;
+
     qreal m_grav = 35;
     qreal m_default_grav = m_grav;
 
@@ -54,10 +58,11 @@ class RainDrop
 
 public:
     void startAtRandomEdge();
+    void setAreaSize(const QSize &areaSize);
     void setDropAngle(double decAngle);
     qreal getDropAngle();
     void advance();
     QRectF bounds() const;
     void draw(QPainter &painter) const;
-    explicit RainDrop(const QSize &areaSize, const WindowTracker &tracker);
+    explicit RainDrop(const QSize &areaSize, const WindowTracker &tracker, const QString &screenName);
 };
