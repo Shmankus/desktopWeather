@@ -46,5 +46,5 @@ public:
 
     void changeParticleType(std::string type, const WindowTracker &tracker);
     int getParticleAmount();
-    void setParticleAmount(int num);
+    void setParticleAmount(int num, std::string type, const WindowTracker &tracker);
 };

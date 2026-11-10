@@ -221,6 +221,8 @@ int main(int argc, char *argv[])
 
     // Let the user show or hide the animated overlay from the tray menu.
 
+    std::string currType = "rain";
+
     auto *randomAngle = new QAction(
         QString::number(overlays.front()->m_particles.front()->getDropAngle()), &app);
     menu->addAction(randomAngle);
@@ -244,7 +246,7 @@ int main(int argc, char *argv[])
         QString::number(overlays.front()->getParticleAmount()), &app);
     menu->addAction(randomParticleAmount);
     QObject::connect(randomParticleAmount, &QAction::triggered, &app,
-                     [randomParticleAmount, &overlays]()
+                     [randomParticleAmount, &overlays, &currType, &tracker]()
                      {
                          std::random_device rd;
                          std::mt19937 gen(rd());
@@ -252,7 +254,7 @@ int main(int argc, char *argv[])
                          double random_num = distrib(gen);
                          for (const std::unique_ptr<PixelOverlay> &overlay : overlays)
                          {
-                             overlay->setParticleAmount(random_num);
+                             overlay->setParticleAmount(random_num, currType, tracker);
                          }
                          randomParticleAmount->setText(QString::number(random_num));
                      });
@@ -262,7 +264,7 @@ int main(int argc, char *argv[])
     menu->addAction(weatherAction);
 
     QObject::connect(weatherAction, &QAction::toggled, &app,
-                     [weatherAction, &overlays, &tracker](bool checked)
+                     [weatherAction, &overlays, &tracker, &currType](bool checked)
                      {
                          weatherAction->setText(
                              checked ? QStringLiteral("Snow") : QStringLiteral("Rain"));
@@ -270,6 +272,7 @@ int main(int argc, char *argv[])
                          for (const std::unique_ptr<PixelOverlay> &overlay : overlays)
                          {
                              overlay->changeParticleType(checked ? "snow" : "rain", tracker);
+                             currType = checked ? "snow" : "rain";
                          }
                      });
 

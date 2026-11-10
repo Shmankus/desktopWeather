@@ -184,7 +184,31 @@ int PixelOverlay::getParticleAmount()
 {
     return dropCount;
 }
-void PixelOverlay::setParticleAmount(int num)
+void PixelOverlay::setParticleAmount(int num, std::string type, const WindowTracker &tracker)
 {
+
+    if (getParticleAmount() > num)
+    {
+        for (int i = 0; i < getParticleAmount() - num; i++)
+        {
+
+            m_particles.pop_back();
+        }
+        m_pixels.fill(Qt::transparent);
+    }
+    else
+    {
+        for (int i = 0; i < num - getParticleAmount(); i++)
+        {
+            if (type == "snow")
+            {
+                m_particles.push_back(std::make_unique<Snow>(m_pixels.size(), tracker, m_screenName));
+            }
+            else
+            {
+                m_particles.push_back(std::make_unique<RainDrop>(m_pixels.size(), tracker, m_screenName));
+            }
+        }
+    }
     dropCount = num;
 }
