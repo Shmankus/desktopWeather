@@ -31,11 +31,11 @@ class RainDrop
     QSize m_areaSize;
     const WindowTracker &m_tracker;
 
-    qreal m_grav = 10;
+    qreal m_grav = 35;
     qreal m_default_grav = m_grav;
 
-    qreal m_Xvel = 500;
-    qreal m_Yvel = 100;
+    qreal m_Xvel = 1000;
+    qreal m_Yvel = 1000;
 
     qreal m_freeFall_Yvel;
 
@@ -45,6 +45,9 @@ class RainDrop
     qreal m_angle;
 
     std::chrono::high_resolution_clock::time_point lastTime = std::chrono::high_resolution_clock::now();
+
+
+    std::chrono::high_resolution_clock::time_point spawnTime = std::chrono::high_resolution_clock::now();
 
 public:
     void startAtRandomEdge();
