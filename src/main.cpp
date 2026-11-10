@@ -246,10 +246,15 @@ int main(int argc, char *argv[])
     menu->addAction(weatherAction);
 
     QObject::connect(weatherAction, &QAction::toggled, &app,
-                     [weatherAction](bool checked)
+                     [weatherAction, &overlays, &tracker](bool checked)
                      {
                          weatherAction->setText(
                              checked ? QStringLiteral("Snow") : QStringLiteral("Rain"));
+
+                         for (const std::unique_ptr<PixelOverlay> &overlay : overlays)
+                         {
+                             overlay->changeParticleType(checked ? "snow" : "rain", tracker);
+                         }
                      });
 
     // Run until the user quits the application.

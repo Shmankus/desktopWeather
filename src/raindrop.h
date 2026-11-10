@@ -31,7 +31,6 @@ class RainDrop : public Particle
 
 public:
 
-    
 
     using Particle::Particle; 
     void advance() override;
