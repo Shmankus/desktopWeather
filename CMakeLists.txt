@@ -30,6 +30,10 @@ find_package(KF6 REQUIRED COMPONENTS
     StatusNotifierItem
 )
 
+# wlr-layer-shell support, so the overlay is a layer surface instead of a
+# top-level window (no taskbar entry, no focus, compositor-owned placement).
+find_package(LayerShellQt REQUIRED)
+
 ecm_find_qmlmodule(org.kde.kirigami REQUIRED)
 
 add_subdirectory(src)

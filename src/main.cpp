@@ -13,30 +13,20 @@
 #include <QPainter>
 #include <QPaintEvent>
 #include <QRandomGenerator>
+#include <QHash>
+#include <QRegion>
 #include <QScreen>
 #include <QTimer>
 #include <QtMath>
 #include <KStatusNotifierItem>
 #include <cmath>
+#include <memory>
 #include <vector>
 
 #include "WindowTracker.h"
 #include "raindrop.h"
 #include "pixel_overlay.h"
 #include "GLOBAL_VARS.h"
-
-// Combine every monitor's rectangle into one rectangle for the overlay window.
-static QRect desktopGeometry()
-{
-    QRect geometry;
-    for (QScreen *screen : QGuiApplication::screens())
-    {
-        geometry = geometry.isNull()
-                       ? screen->geometry()
-                       : geometry.united(screen->geometry());
-    }
-    return geometry;
-}
 
 // Ask KWin to start its scripts, then check whether this app's tracker is loaded.
 static void checkKWinWindowTracker(QApplication &app, const QDBusConnection &sessionBus)
@@ -90,20 +80,19 @@ static void checkKWinWindowTracker(QApplication &app, const QDBusConnection &ses
 
 int main(int argc, char *argv[])
 {
-    // Prefer XWayland when both display types are available, since Wayland
-    // does not let ordinary apps choose exact top-level window positions.
-    if (qEnvironmentVariableIsSet("WAYLAND_DISPLAY") && qEnvironmentVariableIsSet("DISPLAY") && !qEnvironmentVariableIsSet("QT_QPA_PLATFORM"))
-    {
-        qputenv("QT_QPA_PLATFORM", "xcb");
-    }
+    // The overlay is drawn as a wlr-layer-shell surface rather than an ordinary
+    // top-level window, so the compositor owns its placement and it never
+    // appears in the taskbar, the task switcher or the pager, and cannot take
+    // focus. See PixelOverlay::configureAsLayerSurface(). Since Qt 6.5 the
+    // shell integration is selected automatically, so nothing is needed here.
     // QApplication owns the event loop that runs timers, paints windows,
     // receives D-Bus calls, and handles tray-menu actions.
     QApplication app(argc, argv);
     qInfo() << "Desktop Weather started; Qt platform:" << QGuiApplication::platformName();
-    if (QGuiApplication::platformName() == QStringLiteral("wayland"))
+    if (QGuiApplication::platformName() != QStringLiteral("wayland"))
     {
-        qWarning() << "The Wayland compositor controls top-level window placement; "
-                      "set QT_QPA_PLATFORM=xcb to use the requested box position via XWayland.";
+        qWarning() << "Not running on Wayland: layer-shell is unavailable, so the "
+                      "overlay stays an ordinary window and may appear in the taskbar.";
     }
     // Register the object that receives window information from the KWin script.
     WindowTracker tracker;
@@ -123,17 +112,27 @@ int main(int argc, char *argv[])
     }
     checkKWinWindowTracker(app, sessionBus);
 
-    // Create one transparent overlay covering all connected screens.
-    const QRect screenGeometry = desktopGeometry();
-    if (screenGeometry.isNull())
+    // One transparent overlay per screen. A layer surface covers exactly one
+    // output, so whole-desktop rain means one surface, and one set of drops,
+    // for every connected screen.
+    const QList<QScreen *> screens = QGuiApplication::screens();
+    if (screens.isEmpty())
     {
-        qCritical() << "Unable to create the pixel overlay: no screen geometry is available.";
+        qCritical() << "Unable to create the pixel overlay: no screens are available.";
         return 1;
     }
 
-    PixelOverlay overlay(screenGeometry, tracker);
-    overlay.startOverlay();
-    overlay.show();
+    std::vector<std::unique_ptr<PixelOverlay>> overlays;
+    overlays.reserve(screens.size());
+    for (QScreen *screen : screens)
+    {
+        auto overlay = std::make_unique<PixelOverlay>(screen, tracker);
+        overlay->configureAsLayerSurface();
+        overlay->startOverlay();
+        overlay->show();
+        qInfo() << "Raining on" << screen->name() << screen->geometry();
+        overlays.push_back(std::move(overlay));
+    }
 
     // The status notifier item is the app's tray icon and context menu.
     auto *trayItem = new KStatusNotifierItem(&app);
@@ -148,55 +147,94 @@ int main(int argc, char *argv[])
 
     // Refresh droplet info whenever new window info is available
     QObject::connect(&tracker, &WindowTracker::windowsUpdated, &app,
-                     [&overlay](const QJsonArray &windows)
+                     [&overlays](const QJsonArray &windows)
                      {
-                         // need to skip plasmashell
-                         bool too_big = false;
+                         // How much of each screen real windows actually cover.
+                         // Rectangles are merged into a QRegion rather than
+                         // summed, so where two windows overlap the shared area
+                         // is counted once instead of twice. Minimised and
+                         // hidden windows never reach us: the KWin script
+                         // filters them out of the snapshot.
+                         QHash<QString, QRegion> covered;
                          for (const QJsonValue &value : windows)
                          {
                              const QJsonObject window = value.toObject();
-                             if (std::find(SKIPPED_WINDOWS.begin(), SKIPPED_WINDOWS.end(), window.value(QStringLiteral("appId")).toString()) == SKIPPED_WINDOWS.end())
-                             {
-                                 const double screenArea = (window.value(QStringLiteral("screenWidth")).toDouble() * window.value(QStringLiteral("screenHeight")).toDouble());
 
-                                 const int windowArea = (window.value(QStringLiteral("width")).toInt() * window.value(QStringLiteral("height")).toInt());
-                                 const bool windowTooBig = (windowArea >= (screenArea * .85) && (window.value(QStringLiteral("screen")).toInt() == 1)); // check if x times y is < 80% of screens x times y (COULD ADD MONITOR x AND Y TO JSON)
-
-                                 if (windowTooBig)
-                                 {
-                                     too_big = true;
-                                 }
-                             }
-                         }
-                         if (!too_big)
-                         {
-                             if (!overlay.isTimerActive())
+                             // plasmashell and friends are not real windows.
+                             if (std::find(SKIPPED_WINDOWS.begin(), SKIPPED_WINDOWS.end(),
+                                           window.value(QStringLiteral("appId")).toString()) != SKIPPED_WINDOWS.end())
                              {
-                                 overlay.startOverlay();
-                                 overlay.show();
+                                 continue;
                              }
+
+                             // x and y are relative to the window's own screen,
+                             // so each screen is accumulated separately.
+                             const QRect bounds(window.value(QStringLiteral("x")).toInt(),
+                                                window.value(QStringLiteral("y")).toInt(),
+                                                window.value(QStringLiteral("width")).toInt(),
+                                                window.value(QStringLiteral("height")).toInt());
+
+                             covered[window.value(QStringLiteral("screenName")).toString()] |= bounds;
                          }
-                         else
+
+                         for (const std::unique_ptr<PixelOverlay> &overlay : overlays)
                          {
-                             overlay.stopOverlay();
-                             overlay.hide();
+                             // The overlay's own size is the coordinate space the
+                             // drops live in, so coverage is measured against it.
+                             const QRect screenRect(QPoint(0, 0), overlay->size());
+                             const qint64 screenArea = qint64(screenRect.width()) * screenRect.height();
+                             if (screenArea <= 0)
+                             {
+                                 continue;
+                             }
+
+                             // Clipping keeps a window hanging off the edge of
+                             // the screen from inflating the total.
+                             const QRegion onThisScreen = covered.value(overlay->screenName()) & screenRect;
+
+                             // A QRegion's rectangles are disjoint, so adding
+                             // them up gives the exact covered area.
+                             qint64 coveredArea = 0;
+                             for (const QRect &rect : onThisScreen)
+                             {
+                                 coveredArea += qint64(rect.width()) * rect.height();
+                             }
+
+                             // Stop rendering a screen that is almost entirely
+                             // covered, so fullscreen video and games pay no CPU
+                             // cost, and leave the other screens raining.
+                             const bool tooCovered = coveredArea >= screenArea * 0.85;
+
+                             if (tooCovered && overlay->isTimerActive())
+                             {
+                                 overlay->stopOverlay();
+                                 overlay->hide();
+                             }
+                             else if (!tooCovered && !overlay->isTimerActive())
+                             {
+                                 overlay->startOverlay();
+                                 overlay->show();
+                             }
                          }
                      });
 
     // Let the user show or hide the animated overlay from the tray menu.
 
-    auto *randomAngle = new QAction(QString::number(overlay.m_drops[0].getDropAngle()), &app);
+    auto *randomAngle = new QAction(QString::number(overlays.front()->m_drops[0].getDropAngle()), &app);
     menu->addAction(randomAngle);
     QObject::connect(randomAngle, &QAction::triggered, &app,
-                     [randomAngle, &overlay]()
+                     [randomAngle, &overlays]()
                      {
                          std::random_device rd;
                          std::mt19937 gen(rd());
                          std::uniform_int_distribution<> distrib(70, 90);
                          double random_num = distrib(gen);
-                         for (RainDrop &drop : overlay.m_drops)
+                         for (const std::unique_ptr<PixelOverlay> &overlay : overlays)
                          {
-                             drop.setDropAngle(random_num);
+                             for (RainDrop &drop : overlay->m_drops)
+                             {
+                                 drop.setDropAngle(random_num);
+                             }
                          }
                          randomAngle->setText(QString::number(random_num));
                      });

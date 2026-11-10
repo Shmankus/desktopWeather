@@ -27,6 +27,7 @@ target_link_libraries(desktop-weather
         KF6::I18n
         KF6::IconThemes
         KF6::StatusNotifierItem
+        LayerShellQt::Interface
 )
 
 install(TARGETS desktop-weather ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})

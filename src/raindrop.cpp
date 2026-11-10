@@ -34,6 +34,18 @@ void RainDrop::startAtRandomEdge()
     lastTime = std::chrono::high_resolution_clock::now();
     spawnTime = std::chrono::high_resolution_clock::now();
 }
+// The compositor can resize the overlay under us; keep drops inside the area.
+void RainDrop::setAreaSize(const QSize &areaSize)
+{
+    m_areaSize = areaSize;
+
+    const QRectF screenBounds(QPointF(0, 0), QSizeF(m_areaSize));
+    if (!screenBounds.intersects(bounds()))
+    {
+        startAtRandomEdge();
+    }
+}
+
 // sets new angle of attack for the droplets
 
 void RainDrop::setDropAngle(double decAngle)
@@ -77,15 +89,28 @@ void RainDrop::advance()
         }
 
         const QJsonObject window = value.toObject();
+
+        // Windows on another screen cannot be rained on, and must not reset the
+        // gravity of a drop on this one. The KWin script reports x and y
+        // relative to the window's own screen, which matches this overlay's
+        // own coordinates because its layer surface covers exactly one output.
+        if (window.value(QStringLiteral("screenName")).toString() != m_screenName)
+        {
+            continue;
+        }
+
         const QString title = window.value(QStringLiteral("appId")).toString();
+        if (std::find(SKIPPED_WINDOWS.begin(), SKIPPED_WINDOWS.end(), title) != SKIPPED_WINDOWS.end())
+        {
+            continue;
+        }
+
         const int x = window.value(QStringLiteral("x")).toInt();
         const int y = window.value(QStringLiteral("y")).toInt();
         const int width = window.value(QStringLiteral("width")).toInt();
         const int height = window.value(QStringLiteral("height")).toInt();
-        const bool fullscreen = window.value(QStringLiteral("fullScreen")).toBool();
-        const bool screenIndex = window.value(QStringLiteral("screen")).toInt();
 
-        if (m_position.x() > x && m_position.x() < x + width && m_position.y() > y && m_position.y() < y + height && screenIndex == 1 && std::find(SKIPPED_WINDOWS.begin(), SKIPPED_WINDOWS.end(), title) == SKIPPED_WINDOWS.end())
+        if (m_position.x() > x && m_position.x() < x + width && m_position.y() > y && m_position.y() < y + height)
         {
 
             float distToTop = m_position.y() - y;
@@ -148,12 +173,11 @@ void RainDrop::draw(QPainter &painter) const
     painter.fillRect(bounds(), QColor(0, 0, 255, 127));
 }
 
-RainDrop::RainDrop(const QSize &areaSize, const WindowTracker &tracker)
+RainDrop::RainDrop(const QSize &areaSize, const WindowTracker &tracker, const QString &screenName)
     : m_areaSize(areaSize),
-      m_tracker(tracker)
+      m_tracker(tracker),
+      m_screenName(screenName)
 {
-    QRandomGenerator *random = QRandomGenerator::global();
-
     m_angle = 60;
     startAtRandomEdge();
 }
