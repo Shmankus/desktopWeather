@@ -25,6 +25,7 @@
 
 #include "WindowTracker.h"
 #include "raindrop.h"
+#include "snow.h"
 #include "pixel_overlay.h"
 #include "GLOBAL_VARS.h"
 
@@ -220,7 +221,8 @@ int main(int argc, char *argv[])
 
     // Let the user show or hide the animated overlay from the tray menu.
 
-    auto *randomAngle = new QAction(QString::number(overlays.front()->m_drops[0].getDropAngle()), &app);
+    auto *randomAngle = new QAction(
+        QString::number(overlays.front()->m_particles.front()->getDropAngle()), &app);
     menu->addAction(randomAngle);
     QObject::connect(randomAngle, &QAction::triggered, &app,
                      [randomAngle, &overlays]()
@@ -231,12 +233,23 @@ int main(int argc, char *argv[])
                          double random_num = distrib(gen);
                          for (const std::unique_ptr<PixelOverlay> &overlay : overlays)
                          {
-                             for (RainDrop &drop : overlay->m_drops)
+                             for (const auto &particle : overlay->m_particles)
                              {
-                                 drop.setDropAngle(random_num);
+                                 particle->setDropAngle(random_num);
                              }
                          }
                          randomAngle->setText(QString::number(random_num));
+                     });
+
+    auto *weatherAction = new QAction(QStringLiteral("Rain"), &app);
+    weatherAction->setCheckable(true);
+    menu->addAction(weatherAction);
+
+    QObject::connect(weatherAction, &QAction::toggled, &app,
+                     [weatherAction](bool checked)
+                     {
+                         weatherAction->setText(
+                             checked ? QStringLiteral("Snow") : QStringLiteral("Rain"));
                      });
 
     // Run until the user quits the application.
