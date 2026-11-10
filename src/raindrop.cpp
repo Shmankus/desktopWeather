@@ -3,7 +3,7 @@
 #include "GLOBAL_VARS.h"
 #include <algorithm>
 #include <cmath>
-// One raindrop stores its own position and movement settings.
+
 
 void RainDrop::startAtRandomEdge()
 {
@@ -32,6 +32,7 @@ void RainDrop::startAtRandomEdge()
     m_Xvel = m_default_m_Xvel;
     m_Yvel = m_default_m_Yvel;
     lastTime = std::chrono::high_resolution_clock::now();
+    spawnTime = std::chrono::high_resolution_clock::now();
 }
 // sets new angle of attack for the droplets
 
@@ -87,20 +88,6 @@ void RainDrop::advance()
         if (m_position.x() > x && m_position.x() < x + width && m_position.y() > y && m_position.y() < y + height && screenIndex == 1 && std::find(SKIPPED_WINDOWS.begin(), SKIPPED_WINDOWS.end(), title) == SKIPPED_WINDOWS.end())
         {
 
-            // fill in impact logic instead
-            // qInfo() << "Stopped by: " << title;
-
-            // bool hitTop = (m_position.y() >= y && m_position.y() <= y + height);
-
-            // if (hitTop)
-            // {
-
-            //     m_position.setY(y);
-            //     m_Yvel = 0;
-            //     m_grav = 0;
-
-            // }
-
             float distToTop = m_position.y() - y;
             float distToBottom = (y + height) - m_position.y();
             float distToLeft = m_position.x() - x;
@@ -113,6 +100,7 @@ void RainDrop::advance()
                 // Hit the Top surface
                 m_position.setY(y);
                 m_Yvel = 0;
+                m_Xvel = m_default_m_Xvel * .75;
                 m_grav = 0;
             }
             else if (minDist == distToBottom)
@@ -122,23 +110,15 @@ void RainDrop::advance()
             else if (minDist == distToLeft)
             {
                 // left edge
-                m_Yvel = m_freeFall_Yvel * .90;
+                m_Yvel = m_freeFall_Yvel * .92;
                 m_Xvel = 0;
             }
             else if (minDist == distToRight)
             {
                 // Right edge
-                m_Yvel = m_freeFall_Yvel * .90;
+                m_Yvel = m_freeFall_Yvel * .92;
                 m_Xvel = 0;
             }
-
-            // if (hitSide)
-            // {
-            //     m_Yvel = 0; // only grav acts on it and it looks like a good sliding
-            // }
-
-            // m_Yvel = m_Xvel;
-            // startAtRandomEdge();
         }
         else
         {
@@ -149,6 +129,11 @@ void RainDrop::advance()
     }
 
     // detect if water is stuck, either trickle down app or evaporate?
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsed = end - spawnTime;
+    if(elapsed.count() > 30000){
+        startAtRandomEdge();
+    }
 }
 
 // The overlay uses this rectangle both to draw and erase the drop.
