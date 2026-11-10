@@ -1,6 +1,11 @@
 #pragma once
 #include "WindowTracker.h"
 #include "raindrop.h"
+#include "snow.h"
+#include "particle.h"
+#include <memory>
+#include <string>
+#include <vector>
 
 // A single transparent window holds the pixel image and all the raindrops.
 // It passes mouse input through so the user's other windows remain clickable.
@@ -23,7 +28,7 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
 
 public:
-    std::vector<RainDrop> m_drops;
+    std::vector<std::unique_ptr<Particle>> m_particles;
     explicit PixelOverlay(QScreen *screen, const WindowTracker &tracker);
 
     // The name of the output this overlay covers, e.g. "DP-3".
@@ -36,5 +41,6 @@ public:
     void stopOverlay();
 
     bool isTimerActive();
-  
+
+    void changeParticleType(std::string type, const WindowTracker &tracker);
 };

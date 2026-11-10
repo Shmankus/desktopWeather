@@ -2,64 +2,6 @@
 #include "raindrop.h"
 #include "GLOBAL_VARS.h"
 
-
-
-
-void RainDrop::startAtRandomEdge()
-{
-    QRandomGenerator *random = QRandomGenerator::global();
-    const int rand_edge = random->bounded(5); // only 1 in 6 get spawned on side of screen
-    const int maxX = qMax(1, m_areaSize.width() - static_cast<int>(dropSize) + 1);
-    const int maxY = qMax(1, m_areaSize.height() - static_cast<int>(dropSize) + 1);
-
-    if (m_angle == 90 || m_Xvel == 0)
-
-    {
-        m_position = QPointF(random->bounded(maxX), 0);
-    }
-    else
-    {
-        if (rand_edge != 0)
-        {
-            m_position = QPointF(random->bounded(maxX), 0);
-        }
-        else
-        {
-            m_position = QPointF(0, random->bounded(maxY));
-        }
-    }
- 
-    m_Xvel = m_default_m_Xvel;
-    m_Yvel = m_default_m_Yvel;
-    lastTime = std::chrono::high_resolution_clock::now();
-    spawnTime = std::chrono::high_resolution_clock::now();
-}
-// The compositor can resize the overlay under us; keep drops inside the area.
-void RainDrop::setAreaSize(const QSize &areaSize)
-{
-    m_areaSize = areaSize;
-
-    const QRectF screenBounds(QPointF(0, 0), QSizeF(m_areaSize));
-    if (!screenBounds.intersects(bounds()))
-    {
-        startAtRandomEdge();
-    }
-}
-
-// sets new angle of attack for the droplets
-
-void RainDrop::setDropAngle(double decAngle)
-{
-
-    m_angle = decAngle;
-}
-
-qreal RainDrop::getDropAngle()
-{
-
-    return m_angle;
-}
-
 // Move the drop; when it leaves the screen, start it at a fresh edge.
 void RainDrop::advance()
 {
@@ -68,7 +10,6 @@ void RainDrop::advance()
     std::chrono::duration<float> deltaDuration = currentTime - lastTime;
     lastTime = currentTime;
     float deltaTime = deltaDuration.count(); // Delta time in seconds
-
 
     m_Yvel += m_grav;
     const qreal angleRadians = qDegreesToRadians(m_angle);
@@ -156,28 +97,22 @@ void RainDrop::advance()
     // detect if water is stuck, either trickle down app or evaporate?
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - spawnTime;
-    if(elapsed.count() > 30000){
+    if (elapsed.count() > lifeSpan)
+    {
         startAtRandomEdge();
     }
 }
 
-// The overlay uses this rectangle both to draw and erase the drop.
-QRectF RainDrop::bounds() const
-{
-    return QRectF(m_position, QSizeF(dropSize, dropSize));
-}
-
-// Paint this drop into the overlay's image.
-void RainDrop::draw(QPainter &painter) const
-{
-    painter.fillRect(bounds(), QColor(0, 0, 255, 127));
-}
-
 RainDrop::RainDrop(const QSize &areaSize, const WindowTracker &tracker, const QString &screenName)
-    : m_areaSize(areaSize),
-      m_tracker(tracker),
-      m_screenName(screenName)
+    : Particle(areaSize, tracker, screenName)
 {
-    m_angle = 60;
+    particleColor = QColor(0, 0, 255, 127);
+
+
+    std::random_device rd; 
+    std::mt19937 gen(rd()); 
+    std::uniform_int_distribution<> distr(25000, 35000); 
+    lifeSpan = distr(gen);
+
     startAtRandomEdge();
 }

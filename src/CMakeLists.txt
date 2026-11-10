@@ -2,8 +2,12 @@ qt_add_executable(desktop-weather
     main.cpp
     WindowTracker.cpp
     WindowTracker.h
+    particle.cpp
+    particle.h
     raindrop.cpp
     raindrop.h
+    snow.cpp
+    snow.h
     pixel_overlay.cpp
     pixel_overlay.h
     GLOBAL_VARS.h

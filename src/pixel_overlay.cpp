@@ -33,7 +33,7 @@ PixelOverlay::PixelOverlay(QScreen *screen, const WindowTracker &tracker)
     constexpr int dropCount = 1000;
     for (int i = 0; i < dropCount; ++i)
     {
-        m_drops.emplace_back(m_pixels.size(), tracker, m_screenName);
+        m_particles.push_back(std::make_unique<Snow>(m_pixels.size(), tracker, m_screenName));
     }
 
     // A timer advances and redraws every drop about 60 times per second.
@@ -43,17 +43,20 @@ PixelOverlay::PixelOverlay(QScreen *screen, const WindowTracker &tracker)
 
             // Erase the previous drop positions from the transparent image.
             painter.setCompositionMode(QPainter::CompositionMode_Clear);
-            for (const RainDrop &drop : m_drops)
+            for (auto &particlePtr : m_particles)
             {
-                painter.fillRect(drop.bounds(), Qt::transparent);
+                Particle &particle = *particlePtr;
+
+                painter.fillRect(particle.bounds(), Qt::transparent);
             }
 
             // Move each drop and draw it at its new position.
             painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
-            for (RainDrop &drop : m_drops)
+            for (auto &particlePtr : m_particles)
             {
-                drop.advance();
-                drop.draw(painter);
+                Particle &particle = *particlePtr;
+                particle.advance();
+                particle.draw(painter);
             }
             update(); });
    
@@ -127,9 +130,9 @@ void PixelOverlay::resizeEvent(QResizeEvent *event)
 
     m_pixels = QImage(size(), QImage::Format_ARGB32_Premultiplied);
     m_pixels.fill(Qt::transparent);
-    for (RainDrop &drop : m_drops)
+    for (const std::unique_ptr<Particle> &particle : m_particles)
     {
-        drop.setAreaSize(size());
+        particle->setAreaSize(size());
     }
 }
 
@@ -152,4 +155,29 @@ void PixelOverlay::stopOverlay()
 bool PixelOverlay::isTimerActive(){
 
     return m_timer.isActive(); 
+}
+
+void PixelOverlay::changeParticleType(std::string type, const WindowTracker &tracker)
+{
+    m_timer.stop();
+
+    // The old particles are about to be destroyed without erasing themselves,
+    // so wipe the buffer or their last frame would stay painted on screen.
+    m_pixels.fill(Qt::transparent);
+
+    m_particles.clear();
+    constexpr int dropCount = 1000;
+    for (int i = 0; i < dropCount; ++i)
+    {
+        if (type == "snow")
+        {
+            m_particles.push_back(std::make_unique<Snow>(m_pixels.size(), tracker, m_screenName));
+        }
+        else
+        {
+            m_particles.push_back(std::make_unique<RainDrop>(m_pixels.size(), tracker, m_screenName));
+        }
+    }
+
+    m_timer.start(16);
 }
