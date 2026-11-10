@@ -1,8 +1,8 @@
 
 #include "raindrop.h"
 #include "GLOBAL_VARS.h"
-#include <algorithm>
-#include <cmath>
+
+
 
 
 void RainDrop::startAtRandomEdge()

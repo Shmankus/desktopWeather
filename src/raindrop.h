@@ -19,6 +19,9 @@
 #include <QTimer>
 #include <QtMath>
 #include <KStatusNotifierItem>
+
+
+#include <algorithm>
 #include <cmath>
 #include <vector>
 #include "WindowTracker.h"
