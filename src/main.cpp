@@ -28,7 +28,7 @@
 #include "snow.h"
 #include "pixel_overlay.h"
 #include "GLOBAL_VARS.h"
-
+#include <fstream>
 // api needs
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
@@ -110,7 +110,7 @@ double mapEastWestWind(double windDegree)
     double ewComponent = std::sin(rad);
     return 90.0 + (ewComponent * 45.0);
 }
-std::string getWeatherJson()
+std::string getWeatherJson(std::string &API_KEY)
 {
 
     CURL *curl = curl_easy_init();
@@ -120,7 +120,7 @@ std::string getWeatherJson()
         return "";
     }
 
-    std::string url = "https://api.weatherapi.com/v1/current.json?key=8544c4a54fc0433192b00038261111&q=27526";
+    std::string url = "https://api.weatherapi.com/v1/current.json?key=+" + API_KEY + "&q=27526";
     std::string responseString;
 
     // 2. Set curl options
@@ -397,22 +397,54 @@ void spawnMenuItems(QApplication &app, std::vector<std::unique_ptr<PixelOverlay>
                      });
 }
 
-void weatherPolling(QApplication &app, std::vector<std::unique_ptr<PixelOverlay>> &overlays, WindowTracker &tracker, std::string &currType)
+void weatherPolling(QApplication &app, std::vector<std::unique_ptr<PixelOverlay>> &overlays, WindowTracker &tracker, std::string &currType, std::string api_key)
 {
 
     while (true)
     {
-        std::this_thread::sleep_for(std::chrono::seconds(15 * 60));
+        std::this_thread::sleep_for(std::chrono::seconds(15));
 
-        std::string jsonString = getWeatherJson();
+        std::string jsonString = getWeatherJson(api_key);
         double particleWind;
         int particleAmount;
         setParticleInfo(jsonString, overlays, tracker, particleWind, particleAmount);
     }
 }
 
+void load_dotenv(const std::string &filename = ".env")
+{
+    std::ifstream file(filename);
+    std::string line;
+    while (std::getline(file, line))
+    {
+        // Skip empty lines and comments
+        if (line.empty() || line[0] == '#')
+            continue;
+
+        auto pos = line.find('=');
+        if (pos == std::string::npos)
+            continue;
+
+        std::string key = line.substr(0, pos);
+        std::string value = line.substr(pos + 1);
+
+#ifdef _WIN32
+        _putenv_s(key.c_str(), value.c_str());
+#else
+        setenv(key.c_str(), value.c_str(), 1);
+#endif
+    }
+}
+
 int main(int argc, char *argv[])
 {
+    load_dotenv("/home/shmank/Documents/code/desktopWeather/src/.env");
+
+    const char *env_p = std::getenv("API_KEY");
+    std::string api_key = env_p ? env_p : "default_value";
+
+    qInfo() << api_key;
+
     // The overlay is drawn as a wlr-layer-shell surface rather than an ordinary
     // top-level window, so the compositor owns its placement and it never
     // appears in the taskbar, the task switcher or the pager, and cannot take
@@ -471,7 +503,7 @@ int main(int argc, char *argv[])
     // std::string jsonString = "{\"location\":{\"name\":\"Fuquay Varina\",\"region\":\"North Carolina\",\"country\":\"USA\",\"lat\":35.5800018310547,\"lon\":-78.7908020019531,\"tz_id\":\"America/New_York\",\"localtime_epoch\":1794362971,\"localtime\":\"2026-11-10 21:09\"},\"current\":{\"last_updated_epoch\":1794362400,\"last_updated\":\"2026-11-10 21:00\",\"temp_c\":13.8,\"temp_f\":56.8,\"is_day\":0,\"condition\":{\"text\":\"Clear\",\"icon\":\"//cdn.weatherapi.com/weather/64x64/night/113.png\",\"code\":1000},\"wind_mph\":4.5,\"wind_kph\":7.2,\"wind_degree\":283,\"wind_dir\":\"WNW\",\"pressure_mb\":1018.0,\"pressure_in\":30.06,\"precip_mm\":0.0,\"precip_in\":0.0,\"humidity\":66,\"cloud\":22,\"feelslike_c\":11.9,\"feelslike_f\":53.4,\"windchill_c\":13.6,\"windchill_f\":56.5,\"heatindex_c\":13.8,\"heatindex_f\":56.8,\"dewpoint_c\":7.6,\"dewpoint_f\":45.6,\"vis_km\":10.0,\"vis_miles\":6.0,\"uv\":0.0,\"gust_mph\":6.3,\"gust_kph\":10.2,\"will_it_rain\":0,\"chance_of_rain\":6,\"will_it_snow\":0,\"chance_of_snow\":0,\"wetbulb_c\":10.5,\"wetbulb_f\":50.8}}";
     std::string currType = "rain";
 
-    std::string jsonString = getWeatherJson();
+    std::string jsonString = getWeatherJson(api_key);
     double particleWind = 90;
     int particleAmount = 20;
     setParticleInfo(jsonString, overlays, tracker, particleWind, particleAmount);
@@ -479,7 +511,7 @@ int main(int argc, char *argv[])
     spawnMenuItems(app, overlays, tracker, currType, particleWind, particleAmount);
 
     // pulls weather json data every 15 minutes
-    std::thread weatherPollingThread(weatherPolling, std::ref(app), std::ref(overlays), std::ref(tracker), std::ref(currType));
+    std::thread weatherPollingThread(weatherPolling, std::ref(app), std::ref(overlays), std::ref(tracker), std::ref(currType), std::ref(api_key));
     weatherPollingThread.detach();
 
     qInfo() << "APP RUNNING";
