@@ -32,7 +32,7 @@ PixelOverlay::PixelOverlay(QScreen *screen, const WindowTracker &tracker)
     // Create the drops once; each one chooses its own starting position.
     for (int i = 0; i < dropCount; ++i)
     {
-        m_particles.push_back(std::make_unique<Snow>(m_pixels.size(), tracker, m_screenName));
+        m_particles.push_back(std::make_unique<RainDrop>(m_pixels.size(), tracker, m_screenName));
     }
 
     // A timer advances and redraws every drop about 60 times per second.
@@ -187,11 +187,17 @@ int PixelOverlay::getParticleAmount()
 void PixelOverlay::setParticleAmount(int num, std::string type, const WindowTracker &tracker)
 {
 
+    if (num == 0)
+    {
+        m_particles.clear();
+        dropCount = num;
+        return;
+    } // might be redundant
+
     if (getParticleAmount() > num)
     {
         for (int i = 0; i < getParticleAmount() - num; i++)
         {
-
             m_particles.pop_back();
         }
         m_pixels.fill(Qt::transparent);
@@ -210,5 +216,12 @@ void PixelOverlay::setParticleAmount(int num, std::string type, const WindowTrac
             }
         }
     }
+
     dropCount = num;
+}
+
+void PixelOverlay::refreshPixels()
+{
+
+    m_pixels.fill(Qt::transparent);
 }
