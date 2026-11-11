@@ -23,6 +23,8 @@ qt_add_qml_module(desktop-weather
 
 target_link_libraries(desktop-weather
     PRIVATE
+        nlohmann_json::nlohmann_json
+        CURL::libcurl
         Qt6::Quick
         Qt6::QuickControls2
         Qt6::DBus
@@ -32,6 +34,7 @@ target_link_libraries(desktop-weather
         KF6::IconThemes
         KF6::StatusNotifierItem
         LayerShellQt::Interface
+        
 )
 
 install(TARGETS desktop-weather ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})

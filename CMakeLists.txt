@@ -18,6 +18,10 @@ find_package(Qt6 REQUIRED COMPONENTS
     Widgets
 )
 
+find_package(CURL REQUIRED)
+
+find_package(nlohmann_json 3.12.0 REQUIRED)
+
 qt_standard_project_setup(REQUIRES 6.5)
 
 

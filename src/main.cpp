@@ -29,6 +29,11 @@
 #include "pixel_overlay.h"
 #include "GLOBAL_VARS.h"
 
+// api needs
+#include <curl/curl.h>
+#include <nlohmann/json.hpp>
+using nlohmann::json;
+
 // Ask KWin to start its scripts, then check whether this app's tracker is loaded.
 static void checkKWinWindowTracker(QApplication &app, const QDBusConnection &sessionBus)
 {
@@ -79,6 +84,32 @@ static void checkKWinWindowTracker(QApplication &app, const QDBusConnection &ses
         }); });
 }
 
+// 1. Callback function to handle incoming data chunks
+size_t WriteCallback(void *contents, size_t size, size_t nmemb, std::string *userp)
+{
+    size_t totalSize = size * nmemb;
+    if (userp)
+    {
+        userp->append((char *)contents, totalSize);
+    }
+    return totalSize;
+}
+
+// Maps ranges
+template <typename T>
+T mapRange(T value, T inMin, T inMax, T outMin, T outMax)
+{
+    return static_cast<T>(
+        outMin + (static_cast<double>(value - inMin) / (inMax - inMin)) * (outMax - outMin));
+}
+
+// maps the east and west wind angles to usable angles for moving points
+double mapEastWestWind(double windDegree)
+{
+    double rad = windDegree * M_PI / 180.0;
+    double ewComponent = std::sin(rad);
+    return 90.0 + (ewComponent * 45.0);
+}
 int main(int argc, char *argv[])
 {
     // The overlay is drawn as a wlr-layer-shell surface rather than an ordinary
@@ -133,6 +164,35 @@ int main(int argc, char *argv[])
         overlay->show();
         qInfo() << "Raining on" << screen->name() << screen->geometry();
         overlays.push_back(std::move(overlay));
+    }
+
+    std::string jsonString = "{\"location\":{\"name\":\"Fuquay Varina\",\"region\":\"North Carolina\",\"country\":\"USA\",\"lat\":35.5800018310547,\"lon\":-78.7908020019531,\"tz_id\":\"America/New_York\",\"localtime_epoch\":1794362971,\"localtime\":\"2026-11-10 21:09\"},\"current\":{\"last_updated_epoch\":1794362400,\"last_updated\":\"2026-11-10 21:00\",\"temp_c\":13.8,\"temp_f\":56.8,\"is_day\":0,\"condition\":{\"text\":\"Clear\",\"icon\":\"//cdn.weatherapi.com/weather/64x64/night/113.png\",\"code\":1000},\"wind_mph\":4.5,\"wind_kph\":7.2,\"wind_degree\":283,\"wind_dir\":\"WNW\",\"pressure_mb\":1018.0,\"pressure_in\":30.06,\"precip_mm\":0.0,\"precip_in\":0.0,\"humidity\":66,\"cloud\":22,\"feelslike_c\":11.9,\"feelslike_f\":53.4,\"windchill_c\":13.6,\"windchill_f\":56.5,\"heatindex_c\":13.8,\"heatindex_f\":56.8,\"dewpoint_c\":7.6,\"dewpoint_f\":45.6,\"vis_km\":10.0,\"vis_miles\":6.0,\"uv\":0.0,\"gust_mph\":6.3,\"gust_kph\":10.2,\"will_it_rain\":0,\"chance_of_rain\":6,\"will_it_snow\":0,\"chance_of_snow\":0,\"wetbulb_c\":10.5,\"wetbulb_f\":50.8}}";
+
+    json data = json::parse(jsonString);
+
+    double wind_mph = data["current"]["wind_mph"];
+    int wind_degree = data["current"]["wind_degree"];
+    qInfo() << wind_mph << "mph @ " << wind_degree << "degrees" << "\n";
+
+    double wind_dir_2d = mapEastWestWind(wind_degree);                          // map 0 north to 90 north and a 90 +- 45
+    double wind_speed_bonus = mapRange(double(wind_mph), 0.0, 60.0, 0.0, 20.0); // map wind speed to alter angle
+    double wind_dir_2d_bonus = wind_dir_2d;                                     // if directly down, dont add wind speed
+
+    // add wind speed to either side
+    if (wind_dir_2d != 90)
+    {
+        wind_dir_2d_bonus = (wind_dir_2d < 90) ? wind_dir_2d_bonus -= wind_speed_bonus : wind_dir_2d_bonus += wind_speed_bonus;
+    }
+
+    qInfo() << wind_dir_2d << "degrees" << "\n";
+    qInfo() << wind_dir_2d_bonus << "degrees with bonus" << "\n";
+
+    for (const std::unique_ptr<PixelOverlay> &overlay : overlays)
+    {
+        for (const auto &particle : overlay->m_particles)
+        {
+            particle->setDropAngle(wind_dir_2d_bonus);
+        }
     }
 
     // The status notifier item is the app's tray icon and context menu.
@@ -264,7 +324,7 @@ int main(int argc, char *argv[])
     menu->addAction(weatherAction);
 
     QObject::connect(weatherAction, &QAction::toggled, &app,
-                     [weatherAction, &overlays, &tracker, &currType](bool checked)
+                     [weatherAction, &overlays, &tracker, &currType, &wind_dir_2d_bonus](bool checked)
                      {
                          weatherAction->setText(
                              checked ? QStringLiteral("Snow") : QStringLiteral("Rain"));
@@ -273,9 +333,55 @@ int main(int argc, char *argv[])
                          {
                              overlay->changeParticleType(checked ? "snow" : "rain", tracker);
                              currType = checked ? "snow" : "rain";
+
+                             for (const std::unique_ptr<PixelOverlay> &overlay : overlays)
+                             {
+                                 for (const auto &particle : overlay->m_particles)
+                                 {
+                                     particle->setDropAngle(wind_dir_2d_bonus);
+                                 }
+                             }
                          }
                      });
 
+    // CURL *curl = curl_easy_init();
+    // if (!curl)
+    // {
+    //     qInfo() << "Failed to initialize curl";
+    //     return 1;
+    // }
+
+    // std::string url = "https://api.weatherapi.com/v1/current.json?key=8544c4a54fc0433192b00038261111&q=27526";
+    // std::string responseString;
+
+    // // 2. Set curl options
+    // curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    // curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+
+    // // Tell curl to use our callback function
+    // curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+
+    // // Pass the std::string pointer where curl should save the response data
+    // curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseString);
+
+    // // 3. Perform the request
+    // CURLcode res = curl_easy_perform(curl);
+
+    // // 4. Check for errors and print the result
+    // if (res != CURLE_OK)
+    // {
+    //     qInfo() << "curl_easy_perform() failed: " << curl_easy_strerror(res);
+    // }
+    // else
+    // {
+    //     qInfo() << "--- API Response ---";
+    //     qInfo() << responseString;
+    //     qInfo() << "--------------------";
+    // }
+
+    // // Clean up
+    // curl_easy_cleanup(curl);
+    qInfo() << "APP RUNNING";
     // Run until the user quits the application.
     return app.exec();
 }

@@ -51,7 +51,7 @@ public:
 
     QColor particleColor;
 
-    qreal m_angle = 60;
+    qreal m_angle;
 
     std::chrono::high_resolution_clock::time_point lastTime = std::chrono::high_resolution_clock::now();
 
