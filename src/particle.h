@@ -51,7 +51,7 @@ public:
 
     QColor particleColor;
 
-    qreal m_angle;
+    qreal m_angle = 90;
 
     std::chrono::high_resolution_clock::time_point lastTime = std::chrono::high_resolution_clock::now();
 
@@ -67,8 +67,6 @@ public:
     QRectF bounds() const;
     void draw(QPainter &painter) const;
     explicit Particle(const QSize &areaSize, const WindowTracker &tracker, const QString &screenName);
-
-
 
     virtual ~Particle() = default;
 };
