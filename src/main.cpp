@@ -22,7 +22,7 @@
 #include <cmath>
 #include <memory>
 #include <vector>
-
+#include <thread>
 #include "WindowTracker.h"
 #include "raindrop.h"
 #include "snow.h"
@@ -110,7 +110,6 @@ double mapEastWestWind(double windDegree)
     double ewComponent = std::sin(rad);
     return 90.0 + (ewComponent * 45.0);
 }
-
 std::string getWeatherJson()
 {
 
@@ -157,7 +156,7 @@ std::string getWeatherJson()
     return "";
 }
 
-double setParticleInfo(std::string jsonString, std::vector<std::unique_ptr<PixelOverlay>> &overlays, WindowTracker &tracker)
+double setParticleInfo(std::string jsonString, std::vector<std::unique_ptr<PixelOverlay>> &overlays, WindowTracker &tracker, double &particleWind, int &particleAmount)
 {
 
     if (jsonString == "")
@@ -175,11 +174,45 @@ double setParticleInfo(std::string jsonString, std::vector<std::unique_ptr<Pixel
     }
     json data = json::parse(jsonString);
 
-    int particleAmount = 500; // CHANGE TO WORK WITH WEATHER CODES
-    std::string particleType = "rain"; // CHANGE TO WORK WITH WEATHER CODES
+    particleAmount = 500;              // Default Precipitation amount
+    std::string particleType = "rain"; // Default Precipitation type
 
     double wind_mph = data["current"]["wind_mph"];
     int wind_degree = data["current"]["wind_degree"];
+    int condition_code = data["current"]["condition"]["code"];
+
+    switch (condition_code)
+    {
+    case 1183: // light rain
+        particleAmount = 250;
+        particleType = "rain";
+        break;
+    case 1189: // medium rain
+        particleAmount = 500;
+        particleType = "rain";
+        break;
+    case 1195: // heavy rain
+        particleAmount = 1000;
+        particleType = "rain";
+        break;
+    case 1213: // light snow
+        particleAmount = 250;
+        particleType = "snow";
+        break;
+    case 1215: // medium snow
+        particleAmount = 500;
+        particleType = "snow";
+        break;
+    case 1217: // heavy snow
+        particleAmount = 1000;
+        particleType = "snow";
+        break;
+
+    default:
+        particleAmount = 0; // sunny / cloudy
+        break;
+    }
+
     qInfo() << wind_mph << "mph @ " << wind_degree << "degrees" << "\n";
 
     double wind_dir_2d = mapEastWestWind(wind_degree);                          // map 0 north to 90 north and a 90 +- 45
@@ -191,6 +224,8 @@ double setParticleInfo(std::string jsonString, std::vector<std::unique_ptr<Pixel
     {
         wind_dir_2d_bonus = (wind_dir_2d < 90) ? wind_dir_2d_bonus -= wind_speed_bonus : wind_dir_2d_bonus += wind_speed_bonus;
     }
+
+    particleWind = wind_dir_2d_bonus;
 
     qInfo() << wind_dir_2d << "degrees" << "\n";
     qInfo() << wind_dir_2d_bonus << "degrees with bonus" << "\n";
@@ -207,7 +242,7 @@ double setParticleInfo(std::string jsonString, std::vector<std::unique_ptr<Pixel
 
     return wind_dir_2d_bonus;
 }
-void spawnMenuItems(QApplication &app, std::vector<std::unique_ptr<PixelOverlay>> &overlays, WindowTracker &tracker, std::string &currType, double &particleWind)
+void spawnMenuItems(QApplication &app, std::vector<std::unique_ptr<PixelOverlay>> &overlays, WindowTracker &tracker, std::string &currType, double &particleWind, int &particleAmount)
 {
 
     // The status notifier item is the app's tray icon and context menu.
@@ -297,7 +332,7 @@ void spawnMenuItems(QApplication &app, std::vector<std::unique_ptr<PixelOverlay>
     // Let the user show or hide the animated overlay from the tray menu.
 
     auto *randomAngle = new QAction(
-        QString::number(overlays.front()->m_particles.front()->getDropAngle()), &app);
+        QString::number(particleWind), &app);
     menu->addAction(randomAngle);
     QObject::connect(randomAngle, &QAction::triggered, &app,
                      [randomAngle, &overlays]()
@@ -317,10 +352,10 @@ void spawnMenuItems(QApplication &app, std::vector<std::unique_ptr<PixelOverlay>
                          randomAngle->setText(QString::number(random_num));
                      });
     auto *randomParticleAmount = new QAction(
-        QString::number(overlays.front()->getParticleAmount()), &app);
+        QString::number(particleAmount), &app);
     menu->addAction(randomParticleAmount);
     QObject::connect(randomParticleAmount, &QAction::triggered, &app,
-                     [randomParticleAmount, &overlays, &currType, &tracker]()
+                     [randomParticleAmount, &overlays, &currType, &tracker, &particleWind]()
                      {
                          std::random_device rd;
                          std::mt19937 gen(rd());
@@ -329,6 +364,10 @@ void spawnMenuItems(QApplication &app, std::vector<std::unique_ptr<PixelOverlay>
                          for (const std::unique_ptr<PixelOverlay> &overlay : overlays)
                          {
                              overlay->setParticleAmount(random_num, currType, tracker);
+                             for (const auto &particle : overlay->m_particles)
+                             {
+                                 particle->setDropAngle(particleWind);
+                             }
                              overlay->refreshPixels();
                          }
                          randomParticleAmount->setText(QString::number(random_num));
@@ -356,6 +395,20 @@ void spawnMenuItems(QApplication &app, std::vector<std::unique_ptr<PixelOverlay>
                              overlay->refreshPixels();
                          }
                      });
+}
+
+void weatherPolling(QApplication &app, std::vector<std::unique_ptr<PixelOverlay>> &overlays, WindowTracker &tracker, std::string &currType)
+{
+
+    while (true)
+    {
+        std::this_thread::sleep_for(std::chrono::seconds(15 * 60));
+
+        std::string jsonString = getWeatherJson();
+        double particleWind;
+        int particleAmount;
+        setParticleInfo(jsonString, overlays, tracker, particleWind, particleAmount);
+    }
 }
 
 int main(int argc, char *argv[])
@@ -416,13 +469,25 @@ int main(int argc, char *argv[])
     }
 
     // std::string jsonString = "{\"location\":{\"name\":\"Fuquay Varina\",\"region\":\"North Carolina\",\"country\":\"USA\",\"lat\":35.5800018310547,\"lon\":-78.7908020019531,\"tz_id\":\"America/New_York\",\"localtime_epoch\":1794362971,\"localtime\":\"2026-11-10 21:09\"},\"current\":{\"last_updated_epoch\":1794362400,\"last_updated\":\"2026-11-10 21:00\",\"temp_c\":13.8,\"temp_f\":56.8,\"is_day\":0,\"condition\":{\"text\":\"Clear\",\"icon\":\"//cdn.weatherapi.com/weather/64x64/night/113.png\",\"code\":1000},\"wind_mph\":4.5,\"wind_kph\":7.2,\"wind_degree\":283,\"wind_dir\":\"WNW\",\"pressure_mb\":1018.0,\"pressure_in\":30.06,\"precip_mm\":0.0,\"precip_in\":0.0,\"humidity\":66,\"cloud\":22,\"feelslike_c\":11.9,\"feelslike_f\":53.4,\"windchill_c\":13.6,\"windchill_f\":56.5,\"heatindex_c\":13.8,\"heatindex_f\":56.8,\"dewpoint_c\":7.6,\"dewpoint_f\":45.6,\"vis_km\":10.0,\"vis_miles\":6.0,\"uv\":0.0,\"gust_mph\":6.3,\"gust_kph\":10.2,\"will_it_rain\":0,\"chance_of_rain\":6,\"will_it_snow\":0,\"chance_of_snow\":0,\"wetbulb_c\":10.5,\"wetbulb_f\":50.8}}";
-    std::string jsonString = getWeatherJson();
-    double particleWind = setParticleInfo(jsonString, overlays, tracker);
-
     std::string currType = "rain";
-    spawnMenuItems(app, overlays, tracker, currType, particleWind);
+
+    std::string jsonString = getWeatherJson();
+    double particleWind = 90;
+    int particleAmount = 20;
+    setParticleInfo(jsonString, overlays, tracker, particleWind, particleAmount);
+
+    spawnMenuItems(app, overlays, tracker, currType, particleWind, particleAmount);
+
+    // pulls weather json data every 15 minutes
+    std::thread weatherPollingThread(weatherPolling, std::ref(app), std::ref(overlays), std::ref(tracker), std::ref(currType));
+    weatherPollingThread.detach();
 
     qInfo() << "APP RUNNING";
-    // Run until the user quits the application.
+
+    for (const std::unique_ptr<PixelOverlay> &overlay : overlays) // refresh to start, might not be needed
+    {
+        overlay->refreshPixels();
+    }
+
     return app.exec();
 }
