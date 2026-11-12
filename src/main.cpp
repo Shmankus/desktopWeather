@@ -234,15 +234,15 @@ void setParticleInfo(std::string jsonString, std::vector<std::unique_ptr<PixelOv
 
     switch (condition_code)
     {
-    case 1203: // light rain
+    case 1180 ... 1183: // light rain
         particleAmount = 250;
         particleType = "rain";
         break;
-    case 1205: // medium rain
+    case 1186 ... 1189: // medium rain
         particleAmount = 500;
         particleType = "rain";
         break;
-    case 1207: // heavy rain
+    case 1192 ...1195: // heavy rain
         particleAmount = 1000;
         particleType = "rain";
         break;
@@ -311,7 +311,7 @@ void spawnMenuItems(QApplication &app, std::vector<std::unique_ptr<PixelOverlay>
     QMenu *menu = trayItem->contextMenu();
 
     auto *locationMessageAction = new QAction(QString::fromStdString(location), menu);
-    locationMessageAction->setEnabled(false);
+    locationMessageAction->setEnabled(true);
     menu->addAction(locationMessageAction);
 
     auto *apiMessageAction = new QAction(QStringLiteral("Enter WeatherAPI key below"), menu);
@@ -321,7 +321,7 @@ void spawnMenuItems(QApplication &app, std::vector<std::unique_ptr<PixelOverlay>
     auto *apiInputAction = new QAction(QStringLiteral("Enter Key"), menu);
     menu->addAction(apiInputAction);
     QObject::connect(apiInputAction, &QAction::triggered, &app,
-                     [apiInputAction, &api_key, &overlays, &tracker, &zipcode, &location,&locationMessageAction]()
+                     [apiInputAction, &api_key, &overlays, &tracker, &zipcode, &location,locationMessageAction]()
                      {
                          bool accepted = false;
                          const QString text = QInputDialog::getText(
@@ -344,7 +344,7 @@ void spawnMenuItems(QApplication &app, std::vector<std::unique_ptr<PixelOverlay>
                              double particleWind;
                              int particleAmount;
                              setParticleInfo(jsonString, overlays, tracker, location, particleWind, particleAmount);
-                            //  locationMessageAction->setText(QString::fromStdString(location));
+                             locationMessageAction->setText(QString::fromStdString(location));
                          }
                      });
 
@@ -355,7 +355,7 @@ void spawnMenuItems(QApplication &app, std::vector<std::unique_ptr<PixelOverlay>
     auto *zipcodeInputAction = new QAction(QStringLiteral("Enter Zip"), menu);
     menu->addAction(zipcodeInputAction);
     QObject::connect(zipcodeInputAction, &QAction::triggered, &app,
-                     [zipcodeInputAction, &api_key, &overlays, &tracker, &zipcode, &location, &locationMessageAction]()
+                     [zipcodeInputAction, &api_key, &overlays, &tracker, &zipcode, &location, locationMessageAction]()
                      {
                          bool accepted = false;
                          const QString text = QInputDialog::getText(
@@ -378,7 +378,7 @@ void spawnMenuItems(QApplication &app, std::vector<std::unique_ptr<PixelOverlay>
                              double particleWind;
                              int particleAmount;
                              setParticleInfo(jsonString, overlays, tracker, location,particleWind, particleAmount);
-                            //  locationMessageAction->setText(QString::fromStdString(location));
+                             locationMessageAction->setText(QString::fromStdString(location));
                          }
                      });
 
