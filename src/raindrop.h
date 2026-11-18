@@ -33,7 +33,7 @@ public:
 
 
     using Particle::Particle; 
-    void advance() override;
+    void advance(std::vector<std::unique_ptr<Particle>> &m_particles) override;
 
     explicit RainDrop(const QSize &areaSize, const WindowTracker &tracker, const QString &screenName);
 };

@@ -3,7 +3,7 @@
 #include "GLOBAL_VARS.h"
 
 // Move the drop; when it leaves the screen, start it at a fresh edge.
-void Snow::advance()
+void Snow::advance(std::vector<std::unique_ptr<Particle>> &m_particles)
 {
 
     auto currentTime = std::chrono::high_resolution_clock::now();
@@ -50,6 +50,55 @@ void Snow::advance()
         const int y = window.value(QStringLiteral("y")).toInt();
         const int width = window.value(QStringLiteral("width")).toInt();
         const int height = window.value(QStringLiteral("height")).toInt();
+
+        if (m_position.x() > x && m_position.x() < x + width && m_position.y() > y && m_position.y() < y + height)
+        {
+
+            float distToTop = m_position.y() - y;
+            float distToBottom = (y + height) - m_position.y();
+            float distToLeft = m_position.x() - x;
+            float distToRight = (x + width) - m_position.x();
+
+            float minDist = std::min({distToTop, distToBottom, distToLeft, distToRight});
+
+            if (minDist == distToTop)
+            {
+                // Hit the Top surface
+                m_position.setY(y);
+                m_Yvel = 0;
+                m_Xvel = 0;
+                m_grav = 0;
+            }
+            else if (minDist == distToBottom)
+            {
+                continue; // Bottom edge
+            }
+            else if (minDist == distToLeft)
+            {
+                // left edge
+                m_Xvel = 0;
+            }
+            else if (minDist == distToRight)
+            {
+                // Right edge
+                m_Xvel = 0;
+            }
+        }
+        else
+        {
+
+            m_grav = m_default_grav;
+            m_freeFall_Yvel = m_Yvel;
+        }
+    }
+
+    for (auto& particle : m_particles)
+    {
+
+        const int x = particle->m_position.x();
+        const int y = particle->m_position.y();
+        const int width = particle->dropSize/2;
+        const int height = particle->dropSize/2;
 
         if (m_position.x() > x && m_position.x() < x + width && m_position.y() > y && m_position.y() < y + height)
         {

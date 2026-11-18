@@ -3,9 +3,8 @@
 #include "GLOBAL_VARS.h"
 
 // Move the drop; when it leaves the screen, start it at a fresh edge.
-void RainDrop::advance()
+void RainDrop::advance(std::vector<std::unique_ptr<Particle>>& /*m_particles*/)
 {
-
     auto currentTime = std::chrono::high_resolution_clock::now();
     std::chrono::duration<float> deltaDuration = currentTime - lastTime;
     lastTime = currentTime;

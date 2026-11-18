@@ -32,7 +32,7 @@ class Snow : public Particle
 public:
     using Particle::Particle;
     
-    void advance() override;
+    void advance(std::vector<std::unique_ptr<Particle>> &m_particles) override;
 
     explicit Snow(const QSize &areaSize, const WindowTracker &tracker, const QString &screenName);
 };

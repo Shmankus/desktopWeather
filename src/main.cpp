@@ -39,7 +39,7 @@
 #include <nlohmann/json.hpp>
 using nlohmann::json;
 
-bool DEBUG = false;
+bool DEBUG = true;
 std::string debug_json = "{\"location\":{\"name\":\"Fuquay Varina\",\"region\":\"North Carolina\",\"country\":\"USA\",\"lat\":35.5800018310547,\"lon\":-78.7908020019531,\"tz_id\":\"America/New_York\",\"localtime_epoch\":1794362971,\"localtime\":\"2026-11-10 21:09\"},\"current\":{\"last_updated_epoch\":1794362400,\"last_updated\":\"2026-11-10 21:00\",\"temp_c\":13.8,\"temp_f\":56.8,\"is_day\":0,\"condition\":{\"text\":\"Clear\",\"icon\":\"//cdn.weatherapi.com/weather/64x64/night/113.png\",\"code\":1205},\"wind_mph\":4.5,\"wind_kph\":7.2,\"wind_degree\":283,\"wind_dir\":\"WNW\",\"pressure_mb\":1018.0,\"pressure_in\":30.06,\"precip_mm\":0.0,\"precip_in\":0.0,\"humidity\":66,\"cloud\":22,\"feelslike_c\":11.9,\"feelslike_f\":53.4,\"windchill_c\":13.6,\"windchill_f\":56.5,\"heatindex_c\":13.8,\"heatindex_f\":56.8,\"dewpoint_c\":7.6,\"dewpoint_f\":45.6,\"vis_km\":10.0,\"vis_miles\":6.0,\"uv\":0.0,\"gust_mph\":6.3,\"gust_kph\":10.2,\"will_it_rain\":0,\"chance_of_rain\":6,\"will_it_snow\":0,\"chance_of_snow\":0,\"wetbulb_c\":10.5,\"wetbulb_f\":50.8}}";
 
 // Ask KWin to start its scripts, then check whether this app's tracker is loaded.

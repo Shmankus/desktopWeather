@@ -54,7 +54,7 @@ PixelOverlay::PixelOverlay(QScreen *screen, const WindowTracker &tracker)
             for (auto &particlePtr : m_particles)
             {
                 Particle &particle = *particlePtr;
-                particle.advance();
+                particle.advance(m_particles);
                 particle.draw(painter);
             }
             update(); });
